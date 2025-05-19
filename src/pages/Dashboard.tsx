@@ -1,10 +1,11 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, CalendarDays, Users, CheckCircle, Star, Loader2, AlertCircle, RefreshCw, Settings as SettingsIcon } from "lucide-react"; // Importando SettingsIcon
+import { DollarSign, CalendarDays, Users, CheckCircle, Star, Loader2, AlertCircle, RefreshCw, Settings as SettingsIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { startOfToday, endOfMonth, getDay, addDays, isWeekend } from 'date-fns';
-import { Link } from 'react-router-dom'; // Importando Link para navegação
+import { startOfToday, endOfMonth, getDay, addDays, isWeekend, format, startOfMonth, endOfDay } from 'date-fns'; // Importando format, startOfMonth, endOfDay
+import { Link } from 'react-router-dom';
+import MonthNavigator from '@/components/MonthNavigator'; // Importando MonthNavigator
 
 // Define a interface para os dados retornados pelo webhook de Vendas
 interface SalesData {
@@ -17,32 +18,60 @@ interface AppointmentsData {
   count_id_agendamento: number;
 }
 
-// Função para buscar os dados do webhook de Vendas
-const fetchSalesData = async (): Promise<SalesData[]> => {
-  const response = await fetch('https://north-clinic-n8n.hmvvay.easypanel.host/webhook/a1de671e-e201-489a-89db-fa12f96bd5c4');
+// Função para buscar os dados do webhook de Vendas, agora aceitando uma data
+const fetchSalesData = async (date: Date): Promise<SalesData[]> => {
+  // Formata a data para incluir no webhook URL, se suportado
+  // Exemplo: Adicionando query params para mês e ano. Ajuste conforme o webhook espera.
+  const month = format(date, 'MM');
+  const year = format(date, 'yyyy');
+  const webhookUrl = `https://north-clinic-n8n.hmvvay.easypanel.host/webhook/a1de671e-e201-489a-89db-fa12f96bd5c4?month=${month}&year=${year}`;
+
+  console.log("Fetching sales data for:", webhookUrl); // Log para depuração
+
+  const response = await fetch(webhookUrl);
   if (!response.ok) {
     throw new Error('Erro ao buscar dados de vendas do webhook');
   }
   return response.json();
 };
 
-// Função para buscar os dados do webhook de Agendamentos
-const fetchAppointmentsData = async (): Promise<AppointmentsData> => {
-  const response = await fetch('https://north-clinic-n8n.hmvvay.easypanel.host/webhook/815c3e0c-32c7-41ac-9a84-0b1125c4ed84');
+// Função para buscar os dados do webhook de Agendamentos, agora aceitando uma data
+const fetchAppointmentsData = async (date: Date): Promise<AppointmentsData> => {
+  // Formata a data para incluir no webhook URL, se suportado
+  // Exemplo: Adicionando query params para mês e ano. Ajuste conforme o webhook espera.
+  const month = format(date, 'MM');
+  const year = format(date, 'yyyy');
+  const webhookUrl = `https://north-clinic-n8n.hmvvay.easypanel.host/webhook/815c3e0c-32c7-41ac-9a84-0b1125c4ed84?month=${month}&year=${year}`;
+
+  console.log("Fetching appointments data for:", webhookUrl); // Log para depuração
+
+  const response = await fetch(webhookUrl);
   if (!response.ok) {
     throw new Error('Erro ao buscar dados de agendamentos do webhook');
   }
   return response.json();
 };
 
-// Função para calcular os dias úteis restantes (Segunda a Sábado) no mês atual
-const calculateRemainingBusinessDays = (): number => {
+// Função para calcular os dias úteis restantes (Segunda a Sábado) no mês da data selecionada
+const calculateRemainingBusinessDays = (selectedDate: Date): number => {
   const today = startOfToday();
-  const endOfCurrentMonth = endOfMonth(today);
+  const endOfSelectedMonth = endOfMonth(selectedDate);
   let businessDays = 0;
   let currentDate = today;
 
-  while (currentDate <= endOfCurrentMonth) {
+  // Se a data selecionada for um mês futuro, calculamos os dias úteis do mês inteiro
+  // Se for o mês atual, calculamos a partir de hoje até o fim do mês
+  // Se for um mês passado, o resultado é 0 dias restantes
+  if (endOfSelectedMonth < today) {
+      return 0; // Mês passado, 0 dias restantes
+  }
+
+  // Se o mês selecionado for o mês atual, começamos a contagem a partir de hoje
+  // Caso contrário (mês futuro), começamos a contagem a partir do início do mês selecionado
+  currentDate = startOfMonth(selectedDate) > today ? startOfMonth(selectedDate) : today;
+
+
+  while (currentDate <= endOfSelectedMonth) {
     const dayOfWeek = getDay(currentDate); // 0 = Domingo, 6 = Sábado
     // Considera Segunda (1) a Sábado (6) como dias úteis
     if (dayOfWeek !== 0) { // Exclui Domingo
@@ -55,13 +84,16 @@ const calculateRemainingBusinessDays = (): number => {
 
 
 const Dashboard = () => {
-  // Calcula os dias úteis restantes dinamicamente
-  const remainingBusinessDays = calculateRemainingBusinessDays();
+  // Estado para a data selecionada no MonthNavigator, inicializa com o início do mês atual
+  const [selectedDate, setSelectedDate] = React.useState<Date>(startOfMonth(new Date()));
+
+  // Calcula os dias úteis restantes dinamicamente com base na data selecionada
+  const remainingBusinessDays = calculateRemainingBusinessDays(selectedDate);
 
   // Placeholder data for metrics not fetched from webhooks yet
   const evaluationsGenerated = 30; // Example value
 
-  // Use react-query to fetch sales data
+  // Use react-query para buscar dados de vendas, dependendo da data selecionada
   const {
     data: salesData,
     isLoading: isLoadingSales,
@@ -70,11 +102,11 @@ const Dashboard = () => {
     refetch: refetchSales,
     isFetching: isFetchingSales
   } = useQuery<SalesData[], Error>({
-    queryKey: ['salesData'],
-    queryFn: fetchSalesData,
+    queryKey: ['salesData', format(selectedDate, 'yyyy-MM')], // Query key inclui mês/ano para refetch automático
+    queryFn: () => fetchSalesData(selectedDate), // Passa a data selecionada para a função de busca
   });
 
-  // Use react-query to fetch appointments data
+  // Use react-query para buscar dados de agendamentos, dependendo da data selecionada
   const {
     data: appointmentsData,
     isLoading: isLoadingAppointments,
@@ -83,11 +115,12 @@ const Dashboard = () => {
     refetch: refetchAppointments,
     isFetching: isFetchingAppointments
   } = useQuery<AppointmentsData, Error>({
-    queryKey: ['appointmentsData'],
-    queryFn: fetchAppointmentsData,
+    queryKey: ['appointmentsData', format(selectedDate, 'yyyy-MM')], // Query key inclui mês/ano
+    queryFn: () => fetchAppointmentsData(selectedDate), // Passa a data selecionada
   });
 
   // Adicionando logs para depuração
+  console.log("Selected Date:", selectedDate);
   console.log("Appointments Data:", appointmentsData);
   console.log("Is Loading Appointments:", isLoadingAppointments);
   console.log("Is Error Appointments:", isErrorAppointments);
@@ -110,12 +143,26 @@ const Dashboard = () => {
   // Determina se qualquer uma das buscas está em andamento
   const isAnyFetching = isFetchingSales || isFetchingAppointments;
 
+  // Handler para a mudança de mês no MonthNavigator
+  const handleMonthChange = (newDate: Date) => {
+    setSelectedDate(newDate);
+    // react-query irá refetch automaticamente porque a queryKey mudou
+  };
+
+  // Handler para o botão Atualizar Dados
+  const handleRefreshData = () => {
+    refetchSales();
+    refetchAppointments();
+  };
+
+
   return (
     <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Dashboard de Vendas Madureira</h1> {/* Título atualizado */}
-        <div className="flex space-x-4"> {/* Container para os botões */}
-          <Button onClick={() => { refetchSales(); refetchAppointments(); }} disabled={isAnyFetching}>
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0"> {/* Ajuste para layout responsivo */}
+        <h1 className="text-3xl font-bold">Dashboard de Vendas Madureira</h1>
+        <div className="flex items-center space-x-4"> {/* Container para MonthNavigator e botões */}
+          <MonthNavigator currentDate={selectedDate} onMonthChange={handleMonthChange} /> {/* Adiciona o MonthNavigator */}
+          <Button onClick={handleRefreshData} disabled={isAnyFetching}>
             {isAnyFetching ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -123,7 +170,7 @@ const Dashboard = () => {
             )}
             Atualizar Dados
           </Button>
-          <Link to="/settings"> {/* Botão Configurações */}
+          <Link to="/settings">
             <Button variant="outline">
               <SettingsIcon className="mr-2 h-4 w-4" />
               Configurações
@@ -137,7 +184,7 @@ const Dashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Dias Úteis Restantes
+              Dias Úteis Restantes ({format(selectedDate, 'MM/yyyy')}) {/* Mostra o mês/ano no título */}
             </CardTitle>
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -153,7 +200,7 @@ const Dashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Agendamentos Realizados
+              Agendamentos Realizados ({format(selectedDate, 'MM/yyyy')}) {/* Mostra o mês/ano no título */}
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -164,7 +211,7 @@ const Dashboard = () => {
               <>
                 <div className="text-2xl font-bold">{appointmentsMade}</div>
                 <p className="text-xs text-muted-foreground">
-                  Total de agendamentos
+                  Total de agendamentos no mês
                 </p>
               </>
             )}
@@ -175,14 +222,14 @@ const Dashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Avaliações Geradas
+              Avaliações Geradas ({format(selectedDate, 'MM/yyyy')}) {/* Mostra o mês/ano no título */}
             </CardTitle>
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{evaluationsGenerated}</div>
+            <div className="text-2xl font-bold">{evaluationsGenerated}</div> {/* Este dado ainda é placeholder */}
             <p className="text-xs text-muted-foreground">
-              Total de avaliações
+              Total de avaliações no mês
             </p>
           </CardContent>
         </Card>
@@ -191,7 +238,7 @@ const Dashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Vendas Fechadas
+              Vendas Fechadas ({format(selectedDate, 'MM/yyyy')}) {/* Mostra o mês/ano no título */}
             </CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -202,7 +249,7 @@ const Dashboard = () => {
               <>
                 <div className="text-2xl font-bold">{salesClosed}</div>
                 <p className="text-xs text-muted-foreground">
-                  Total de vendas
+                  Total de vendas no mês
                 </p>
               </>
             )}
@@ -213,7 +260,7 @@ const Dashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Faturamento Atual
+              Faturamento Atual ({format(selectedDate, 'MM/yyyy')}) {/* Mostra o mês/ano no título */}
             </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -224,7 +271,7 @@ const Dashboard = () => {
               <>
                 <div className="text-2xl font-bold">R$ {currentRevenue.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
-                  Total de faturamento
+                  Total de faturamento no mês
                 </p>
               </>
             )}
@@ -235,7 +282,7 @@ const Dashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Ticket Médio
+              Ticket Médio ({format(selectedDate, 'MM/yyyy')}) {/* Mostra o mês/ano no título */}
             </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -246,7 +293,7 @@ const Dashboard = () => {
               <>
                 <div className="text-2xl font-bold">R$ {averageTicket.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
-                  Faturamento / Vendas
+                  Faturamento / Vendas no mês
                 </p>
               </>
              )}
