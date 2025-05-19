@@ -1,51 +1,90 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button"; // Importando o componente Button
-import { DollarSign, CalendarDays, Users, CheckCircle, Star, Loader2, AlertCircle, RefreshCw } from "lucide-react"; // Adicionando RefreshCw icon
+import { Button } from "@/components/ui/button";
+import { DollarSign, CalendarDays, Users, CheckCircle, Star, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
-// Define a interface para os dados retornados pelo webhook
+// Define a interface para os dados retornados pelo webhook de Vendas
 interface SalesData {
   count_id_north: number;
   sum_valor_venda: number;
 }
 
-// Função para buscar os dados do webhook
+// Define a interface para os dados retornados pelo webhook de Agendamentos
+interface AppointmentsData {
+  count_agendamentos: number; // Assumindo que o webhook retorna um objeto com esta chave
+}
+
+// Função para buscar os dados do webhook de Vendas
 const fetchSalesData = async (): Promise<SalesData[]> => {
   const response = await fetch('https://north-clinic-n8n.hmvvay.easypanel.host/webhook/a1de671e-e201-489a-89db-fa12f96bd5c4');
   if (!response.ok) {
-    throw new Error('Erro ao buscar dados do webhook');
+    throw new Error('Erro ao buscar dados de vendas do webhook');
   }
   return response.json();
 };
 
+// Função para buscar os dados do webhook de Agendamentos
+const fetchAppointmentsData = async (): Promise<AppointmentsData[]> => {
+  const response = await fetch('https://north-clinic-n8n.hmvvay.easypanel.host/webhook/815c3e0c-32c7-41ac-9a84-0b1125c4ed84');
+  if (!response.ok) {
+    throw new Error('Erro ao buscar dados de agendamentos do webhook');
+  }
+  return response.json();
+};
+
+
 const Dashboard = () => {
-  // Placeholder data for metrics not fetched from the webhook yet
+  // Placeholder data for metrics not fetched from webhooks yet
   const remainingBusinessDays = 15; // Example value
-  const appointmentsMade = 50; // Example value
   const evaluationsGenerated = 30; // Example value
 
   // Use react-query to fetch sales data
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery<SalesData[], Error>({
-    queryKey: ['salesData'], // Chave única para esta query
-    queryFn: fetchSalesData, // Função que realiza a busca
-    // staleTime: 1000 * 60 * 5, // Opcional: dados considerados "frescos" por 5 minutos
-    // refetchOnWindowFocus: false, // Opcional: não refetch ao focar na janela
+  const {
+    data: salesData,
+    isLoading: isLoadingSales,
+    isError: isErrorSales,
+    error: salesError,
+    refetch: refetchSales,
+    isFetching: isFetchingSales
+  } = useQuery<SalesData[], Error>({
+    queryKey: ['salesData'],
+    queryFn: fetchSalesData,
   });
 
-  // Extrai os dados de vendas e faturamento, tratando o caso de dados vazios ou em carregamento/erro
-  const salesClosed = data?.[0]?.count_id_north ?? 0;
-  const currentRevenue = data?.[0]?.sum_valor_venda ?? 0;
+  // Use react-query to fetch appointments data
+  const {
+    data: appointmentsData,
+    isLoading: isLoadingAppointments,
+    isError: isErrorAppointments,
+    error: appointmentsError,
+    refetch: refetchAppointments,
+    isFetching: isFetchingAppointments
+  } = useQuery<AppointmentsData[], Error>({
+    queryKey: ['appointmentsData'],
+    queryFn: fetchAppointmentsData,
+  });
+
+
+  // Extrai os dados de vendas e faturamento
+  const salesClosed = salesData?.[0]?.count_id_north ?? 0;
+  const currentRevenue = salesData?.[0]?.sum_valor_venda ?? 0;
+
+  // Extrai os dados de agendamentos
+  const appointmentsMade = appointmentsData?.[0]?.count_agendamentos ?? 0; // Usando a chave assumida
 
   // Calcula o ticket médio
   const averageTicket = salesClosed > 0 ? currentRevenue / salesClosed : 0;
+
+  // Determina se qualquer uma das buscas está em andamento
+  const isAnyFetching = isFetchingSales || isFetchingAppointments;
 
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Dashboard de Vendas</h1>
-        <Button onClick={() => refetch()} disabled={isFetching}>
-          {isFetching ? (
+        <Button onClick={() => { refetchSales(); refetchAppointments(); }} disabled={isAnyFetching}>
+          {isAnyFetching ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             <RefreshCw className="mr-2 h-4 w-4" />
@@ -80,10 +119,16 @@ const Dashboard = () => {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{appointmentsMade}</div>
-            <p className="text-xs text-muted-foreground">
-              Total de agendamentos
-            </p>
+            {isLoadingAppointments && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
+            {isErrorAppointments && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {appointmentsError?.message}</div>}
+            {!isLoadingAppointments && !isErrorAppointments && (
+              <>
+                <div className="text-2xl font-bold">{appointmentsMade}</div>
+                <p className="text-xs text-muted-foreground">
+                  Total de agendamentos
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -112,9 +157,9 @@ const Dashboard = () => {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
-            {isError && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {error.message}</div>}
-            {!isLoading && !isError && (
+            {isLoadingSales && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
+            {isErrorSales && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {salesError?.message}</div>}
+            {!isLoadingSales && !isErrorSales && (
               <>
                 <div className="text-2xl font-bold">{salesClosed}</div>
                 <p className="text-xs text-muted-foreground">
@@ -134,9 +179,9 @@ const Dashboard = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoading && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
-            {isError && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {error.message}</div>}
-            {!isLoading && !isError && (
+            {isLoadingSales && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
+            {isErrorSales && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {salesError?.message}</div>}
+            {!isLoadingSales && !isErrorSales && (
               <>
                 <div className="text-2xl font-bold">R$ {currentRevenue.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
@@ -156,9 +201,9 @@ const Dashboard = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             {isLoading && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
-             {isError && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao calcular</div>}
-             {!isLoading && !isError && (
+             {(isLoadingSales || isLoadingAppointments) && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
+             {(isErrorSales || isErrorAppointments) && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao calcular</div>}
+             {!(isLoadingSales || isLoadingAppointments) && !(isErrorSales || isErrorAppointments) && (
               <>
                 <div className="text-2xl font-bold">R$ {averageTicket.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
