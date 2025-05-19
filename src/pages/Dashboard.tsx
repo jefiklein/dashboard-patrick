@@ -120,7 +120,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             {isLoadingAppointments && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
-            isErrorAppointments && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {appointmentsError?.message}</div>}
+            {isErrorAppointments && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {appointmentsError?.message}</div>}
             {!isLoadingAppointments && !isErrorAppointments && (
               <>
                 <div className="text-2xl font-bold">{appointmentsMade}</div>
