@@ -11,8 +11,9 @@ interface SalesData {
 }
 
 // Define a interface para os dados retornados pelo webhook de Agendamentos
+// Ajustado para refletir que o webhook retorna um objeto único, não um array
 interface AppointmentsData {
-  count_id_agendamento: number; // Corrigido para usar o nome do campo correto
+  count_id_agendamento: number;
 }
 
 // Função para buscar os dados do webhook de Vendas
@@ -25,7 +26,8 @@ const fetchSalesData = async (): Promise<SalesData[]> => {
 };
 
 // Função para buscar os dados do webhook de Agendamentos
-const fetchAppointmentsData = async (): Promise<AppointmentsData[]> => {
+// O tipo de retorno agora é Promise<AppointmentsData> (objeto único)
+const fetchAppointmentsData = async (): Promise<AppointmentsData> => {
   const response = await fetch('https://north-clinic-n8n.hmvvay.easypanel.host/webhook/815c3e0c-32c7-41ac-9a84-0b1125c4ed84');
   if (!response.ok) {
     throw new Error('Erro ao buscar dados de agendamentos do webhook');
@@ -53,6 +55,7 @@ const Dashboard = () => {
   });
 
   // Use react-query to fetch appointments data
+  // O tipo de dados esperado agora é AppointmentsData (objeto único)
   const {
     data: appointmentsData,
     isLoading: isLoadingAppointments,
@@ -60,7 +63,7 @@ const Dashboard = () => {
     error: appointmentsError,
     refetch: refetchAppointments,
     isFetching: isFetchingAppointments
-  } = useQuery<AppointmentsData[], Error>({
+  } = useQuery<AppointmentsData, Error>({
     queryKey: ['appointmentsData'],
     queryFn: fetchAppointmentsData,
   });
@@ -77,7 +80,8 @@ const Dashboard = () => {
   const currentRevenue = salesData?.[0]?.sum_valor_venda ?? 0;
 
   // Extrai os dados de agendamentos
-  const appointmentsMade = appointmentsData?.[0]?.count_id_agendamento ?? 0; // Usando o campo correto
+  // Ajustado para acessar a propriedade diretamente do objeto
+  const appointmentsMade = appointmentsData?.count_id_agendamento ?? 0;
 
   console.log("Appointments Made (extracted):", appointmentsMade);
 
