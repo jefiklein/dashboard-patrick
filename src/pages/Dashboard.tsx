@@ -1,9 +1,10 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, CalendarDays, Users, CheckCircle, Star, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { DollarSign, CalendarDays, Users, CheckCircle, Star, Loader2, AlertCircle, RefreshCw, Settings as SettingsIcon } from "lucide-react"; // Importando SettingsIcon
 import { useQuery } from "@tanstack/react-query";
-import { startOfToday, endOfMonth, getDay, addDays, isWeekend } from 'date-fns'; // Importando funções de date-fns
+import { startOfToday, endOfMonth, getDay, addDays, isWeekend } from 'date-fns';
+import { Link } from 'react-router-dom'; // Importando Link para navegação
 
 // Define a interface para os dados retornados pelo webhook de Vendas
 interface SalesData {
@@ -112,15 +113,23 @@ const Dashboard = () => {
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Dashboard de Vendas</h1>
-        <Button onClick={() => { refetchSales(); refetchAppointments(); }} disabled={isAnyFetching}>
-          {isAnyFetching ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-4 w-4" />
-          )}
-          Atualizar Dados
-        </Button>
+        <h1 className="text-3xl font-bold">Dashboard de Vendas Madureira</h1> {/* Título atualizado */}
+        <div className="flex space-x-4"> {/* Container para os botões */}
+          <Button onClick={() => { refetchSales(); refetchAppointments(); }} disabled={isAnyFetching}>
+            {isAnyFetching ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Atualizar Dados
+          </Button>
+          <Link to="/settings"> {/* Botão Configurações */}
+            <Button variant="outline">
+              <SettingsIcon className="mr-2 h-4 w-4" />
+              Configurações
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
