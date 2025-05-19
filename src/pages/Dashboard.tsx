@@ -65,6 +65,12 @@ const Dashboard = () => {
     queryFn: fetchAppointmentsData,
   });
 
+  // Adicionando logs para depuração
+  console.log("Appointments Data:", appointmentsData);
+  console.log("Is Loading Appointments:", isLoadingAppointments);
+  console.log("Is Error Appointments:", isErrorAppointments);
+  console.log("Appointments Error:", appointmentsError);
+
 
   // Extrai os dados de vendas e faturamento
   const salesClosed = salesData?.[0]?.count_id_north ?? 0;
@@ -72,6 +78,9 @@ const Dashboard = () => {
 
   // Extrai os dados de agendamentos
   const appointmentsMade = appointmentsData?.[0]?.count_id_agendamento ?? 0; // Usando o campo correto
+
+  console.log("Appointments Made (extracted):", appointmentsMade);
+
 
   // Calcula o ticket médio
   const averageTicket = salesClosed > 0 ? currentRevenue / salesClosed : 0;
