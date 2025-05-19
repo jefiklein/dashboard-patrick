@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, CalendarDays, Users, CheckCircle, Star, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { startOfToday, endOfMonth, getDay, addDays, isWeekend } from 'date-fns'; // Importando funções de date-fns
 
 // Define a interface para os dados retornados pelo webhook de Vendas
 interface SalesData {
@@ -11,7 +12,6 @@ interface SalesData {
 }
 
 // Define a interface para os dados retornados pelo webhook de Agendamentos
-// Ajustado para refletir que o webhook retorna um objeto único, não um array
 interface AppointmentsData {
   count_id_agendamento: number;
 }
@@ -26,7 +26,6 @@ const fetchSalesData = async (): Promise<SalesData[]> => {
 };
 
 // Função para buscar os dados do webhook de Agendamentos
-// O tipo de retorno agora é Promise<AppointmentsData> (objeto único)
 const fetchAppointmentsData = async (): Promise<AppointmentsData> => {
   const response = await fetch('https://north-clinic-n8n.hmvvay.easypanel.host/webhook/815c3e0c-32c7-41ac-9a84-0b1125c4ed84');
   if (!response.ok) {
@@ -35,10 +34,30 @@ const fetchAppointmentsData = async (): Promise<AppointmentsData> => {
   return response.json();
 };
 
+// Função para calcular os dias úteis restantes (Segunda a Sábado) no mês atual
+const calculateRemainingBusinessDays = (): number => {
+  const today = startOfToday();
+  const endOfCurrentMonth = endOfMonth(today);
+  let businessDays = 0;
+  let currentDate = today;
+
+  while (currentDate <= endOfCurrentMonth) {
+    const dayOfWeek = getDay(currentDate); // 0 = Domingo, 6 = Sábado
+    // Considera Segunda (1) a Sábado (6) como dias úteis
+    if (dayOfWeek !== 0) { // Exclui Domingo
+      businessDays++;
+    }
+    currentDate = addDays(currentDate, 1);
+  }
+  return businessDays;
+};
+
 
 const Dashboard = () => {
+  // Calcula os dias úteis restantes dinamicamente
+  const remainingBusinessDays = calculateRemainingBusinessDays();
+
   // Placeholder data for metrics not fetched from webhooks yet
-  const remainingBusinessDays = 15; // Example value
   const evaluationsGenerated = 30; // Example value
 
   // Use react-query to fetch sales data
@@ -55,7 +74,6 @@ const Dashboard = () => {
   });
 
   // Use react-query to fetch appointments data
-  // O tipo de dados esperado agora é AppointmentsData (objeto único)
   const {
     data: appointmentsData,
     isLoading: isLoadingAppointments,
@@ -80,7 +98,6 @@ const Dashboard = () => {
   const currentRevenue = salesData?.[0]?.sum_valor_venda ?? 0;
 
   // Extrai os dados de agendamentos
-  // Ajustado para acessar a propriedade diretamente do objeto
   const appointmentsMade = appointmentsData?.count_id_agendamento ?? 0;
 
   console.log("Appointments Made (extracted):", appointmentsMade);
@@ -118,7 +135,7 @@ const Dashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{remainingBusinessDays}</div>
             <p className="text-xs text-muted-foreground">
-              Incluindo Sábados
+              Contando de Segunda a Sábado
             </p>
           </CardContent>
         </Card>
