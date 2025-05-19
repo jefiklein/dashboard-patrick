@@ -12,7 +12,7 @@ interface SalesData {
 
 // Define a interface para os dados retornados pelo webhook de Agendamentos
 interface AppointmentsData {
-  count_agendamentos: number; // Assumindo que o webhook retorna um objeto com esta chave
+  count_id_agendamento: number; // Corrigido para usar o nome do campo correto
 }
 
 // Função para buscar os dados do webhook de Vendas
@@ -71,7 +71,7 @@ const Dashboard = () => {
   const currentRevenue = salesData?.[0]?.sum_valor_venda ?? 0;
 
   // Extrai os dados de agendamentos
-  const appointmentsMade = appointmentsData?.[0]?.count_agendamentos ?? 0; // Usando a chave assumida
+  const appointmentsMade = appointmentsData?.[0]?.count_id_agendamento ?? 0; // Usando o campo correto
 
   // Calcula o ticket médio
   const averageTicket = salesClosed > 0 ? currentRevenue / salesClosed : 0;
@@ -120,7 +120,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             {isLoadingAppointments && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
-            {isErrorAppointments && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {appointmentsError?.message}</div>}
+            isErrorAppointments && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {appointmentsError?.message}</div>}
             {!isLoadingAppointments && !isErrorAppointments && (
               <>
                 <div className="text-2xl font-bold">{appointmentsMade}</div>
