@@ -14,7 +14,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "vite preview --port 8080 --host 0.0.0.0"
+    "start": "serve -s dist -p 8080"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -22,7 +22,7 @@
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",
     "@radix-ui/react-avatar": "^1.1.0",
-    "@radix-ui/react-checkbox": "^1.1.1",
+    "@radix-ui/react-checkbox": "^1.1.0",
     "@radix-ui/react-collapsible": "^1.1.0",
     "@radix-ui/react-context-menu": "^2.2.1",
     "@radix-ui/react-dialog": "^1.1.2",
