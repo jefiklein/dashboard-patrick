@@ -318,9 +318,11 @@ const Dashboard = () => {
                <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao carregar dados/meta</div>
              ) : (
               <>
-                <div className="text-2xl font-bold">{appointmentsMade}</div>
+                {/* Valor atual em verde */}
+                <div className="text-2xl font-bold text-green-600">{appointmentsMade}</div>
                 {currentMonthConfig && (
-                  <p className="text-xs text-muted-foreground">
+                  // Meta e progresso em laranja
+                  <p className="text-xs text-orange-600">
                     Meta: {currentMonthConfig.appointmentsMade} ({appointmentsProgress !== null ? `${appointmentsProgress.toFixed(0)}%` : 'N/A'} da meta)
                   </p>
                 )}
@@ -344,9 +346,11 @@ const Dashboard = () => {
                <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao carregar dados/meta</div>
              ) : (
               <>
-                <div className="text-2xl font-bold">{evaluationsGenerated}</div>
+                 {/* Valor atual em verde */}
+                <div className="text-2xl font-bold text-green-600">{evaluationsGenerated}</div>
                 {currentMonthConfig && (
-                  <p className="text-xs text-muted-foreground">
+                   // Meta e progresso em laranja
+                  <p className="text-xs text-orange-600">
                     Meta: {currentMonthConfig.evaluationsGenerated} ({evaluationsProgress !== null ? `${evaluationsProgress.toFixed(0)}%` : 'N/A'} da meta)
                   </p>
                 )}
@@ -370,9 +374,11 @@ const Dashboard = () => {
               <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao carregar dados/meta</div>
             ) : (
               <>
-                <div className="text-2xl font-bold">{salesClosed}</div>
+                 {/* Valor atual em verde */}
+                <div className="text-2xl font-bold text-green-600">{salesClosed}</div>
                 {currentMonthConfig && (
-                  <p className="text-xs text-muted-foreground">
+                   // Meta e progresso em laranja
+                  <p className="text-xs text-orange-600">
                     Meta: {currentMonthConfig.salesClosed} ({salesProgress !== null ? `${salesProgress.toFixed(0)}%` : 'N/A'} da meta)
                   </p>
                 )}
@@ -396,9 +402,11 @@ const Dashboard = () => {
               <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao carregar dados/meta</div>
             ) : (
               <>
-                <div className="text-2xl font-bold">R$ {currentRevenue.toFixed(2)}</div>
+                 {/* Valor atual em verde */}
+                <div className="text-2xl font-bold text-green-600">R$ {currentRevenue.toFixed(2)}</div>
                 {currentMonthConfig && (
-                  <p className="text-xs text-muted-foreground">
+                   // Meta e progresso em laranja
+                  <p className="text-xs text-orange-600">
                     Meta: R$ {currentMonthConfig.monthlyGoal.toFixed(2)} ({revenueProgress !== null ? `${revenueProgress.toFixed(0)}%` : 'N/A'} da meta)
                   </p>
                 )}
@@ -422,9 +430,11 @@ const Dashboard = () => {
                <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao calcular</div>
              ) : (
               <>
-                <div className="text-2xl font-bold">R$ {averageTicket.toFixed(2)}</div>
+                 {/* Valor atual em verde */}
+                <div className="text-2xl font-bold text-green-600">R$ {averageTicket.toFixed(2)}</div>
                 {currentMonthConfig && (
-                  <p className="text-xs text-muted-foreground">
+                   // Meta e progresso em laranja
+                  <p className="text-xs text-orange-600">
                     Meta: R$ {currentMonthConfig.averageTicket.toFixed(2)} ({averageTicketProgress !== null ? `${averageTicketProgress.toFixed(0)}%` : 'N/A'} da meta)
                   </p>
                 )}
