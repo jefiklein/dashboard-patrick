@@ -180,18 +180,20 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold">Dashboard de Vendas Madureira</h1>
         <div className="flex items-center space-x-4"> {/* Container para MonthNavigator e botões */}
           <MonthNavigator currentDate={selectedDate} onMonthChange={handleMonthChange} /> {/* Adiciona o MonthNavigator */}
-          <Button onClick={handleRefreshData} disabled={isAnyFetching}>
+          {/* Botão Atualizar Dados - Ícone no mobile, Ícone + Texto no desktop */}
+          <Button onClick={handleRefreshData} disabled={isAnyFetching} size="icon" className="md:size-auto md:px-4 md:py-2">
             {isAnyFetching ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 md:mr-2 animate-spin" />
             ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
+              <RefreshCw className="h-4 w-4 md:mr-2" />
             )}
-            Atualizar Dados
+            <span className="hidden md:inline">Atualizar Dados</span>
           </Button>
+          {/* Botão Configurações - Ícone no mobile, Ícone + Texto no desktop */}
           <Link to="/settings">
-            <Button variant="outline">
-              <SettingsIcon className="mr-2 h-4 w-4" />
-              Configurações
+            <Button variant="outline" size="icon" className="md:size-auto md:px-4 md:py-2">
+              <SettingsIcon className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Configurações</span>
             </Button>
           </Link>
         </div>
