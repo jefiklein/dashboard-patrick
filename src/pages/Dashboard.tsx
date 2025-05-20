@@ -23,7 +23,8 @@ interface EvaluationsData {
   total_realizadas: number;
 }
 
-type CombinedAppointmentsAndEvaluationsResponse = [AppointmentsData, EvaluationsData];
+// Definimos o tipo esperado como um array contendo potencialmente esses objetos
+type CombinedAppointmentsAndEvaluationsResponse = Array<AppointmentsData | EvaluationsData>;
 
 
 // Função para buscar os dados do webhook de Vendas, agora aceitando uma data
@@ -57,7 +58,8 @@ const fetchAppointmentsAndEvaluationsData = async (date: Date): Promise<Combined
     throw new Error('Erro ao buscar dados de agendamentos e avaliações do webhook');
   }
   const data: CombinedAppointmentsAndEvaluationsResponse = await response.json();
-  console.log("Appointments and Evaluations Data received:", data); // Log para depuração
+  // Loga a resposta completa e formatada para depuração
+  console.log("Appointments and Evaluations Data received:", JSON.stringify(data, null, 2));
   return data;
 };
 
@@ -128,7 +130,7 @@ const Dashboard = () => {
 
   // Adicionando logs para depuração
   console.log("Selected Date:", selectedDate);
-  console.log("Appointments and Evaluations Data:", appointmentsAndEvaluationsData);
+  // O log da resposta completa agora está dentro de fetchAppointmentsAndEvaluationsData
   console.log("Is Loading Appointments/Evaluations:", isLoadingAppointmentsAndEvaluations);
   console.log("Is Error Appointments/Evaluations:", isErrorAppointmentsAndEvaluations);
   console.log("Appointments/Evaluations Error:", appointmentsAndEvaluationsError);
@@ -138,9 +140,21 @@ const Dashboard = () => {
   const salesClosed = salesData?.[0]?.count_id_north ?? 0;
   const currentRevenue = salesData?.[0]?.sum_valor_venda ?? 0;
 
-  // Extrai os dados de agendamentos e avaliações da nova estrutura com verificação de array
-  const appointmentsMade = appointmentsAndEvaluationsData && appointmentsAndEvaluationsData.length > 0 ? appointmentsAndEvaluationsData[0]?.total_agendamentos ?? 0 : 0;
-  const evaluationsGenerated = appointmentsAndEvaluationsData && appointmentsAndEvaluationsData.length > 1 ? appointmentsAndEvaluationsData[1]?.total_realizadas ?? 0 : 0;
+  // Extrai os dados de agendamentos e avaliações da nova estrutura com verificação de array e campos
+  let appointmentsMade = 0;
+  let evaluationsGenerated = 0;
+
+  if (appointmentsAndEvaluationsData && Array.isArray(appointmentsAndEvaluationsData)) {
+    // Verifica se o primeiro elemento existe e tem a propriedade total_agendamentos
+    if (appointmentsAndEvaluationsData.length > 0 && appointmentsAndEvaluationsData[0] && 'total_agendamentos' in appointmentsAndEvaluationsData[0]) {
+      appointmentsMade = (appointmentsAndEvaluationsData[0] as AppointmentsData).total_agendamentos ?? 0;
+    }
+    // Verifica se o segundo elemento existe e tem a propriedade total_realizadas
+    if (appointmentsAndEvaluationsData.length > 1 && appointmentsAndEvaluationsData[1] && 'total_realizadas' in appointmentsAndEvaluationsData[1]) {
+       evaluationsGenerated = (appointmentsAndEvaluationsData[1] as EvaluationsData).total_realizadas ?? 0;
+    }
+  }
+
 
   console.log("Appointments Made (extracted):", appointmentsMade);
   console.log("Evaluations Generated (extracted):", evaluationsGenerated);
