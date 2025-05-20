@@ -234,8 +234,9 @@ const Settings = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[100px]">Mês</TableHead>
-                  <TableHead>Meta Mensal (R$)</TableHead>
-                  <TableHead>Ticket Médio (R$)</TableHead>
+                  {/* Ajustando largura das colunas para Meta Mensal e Ticket Médio */}
+                  <TableHead className="w-[150px]">Meta Mensal (R$)</TableHead>
+                  <TableHead className="w-[150px]">Ticket Médio (R$)</TableHead>
                   <TableHead>Agendamentos</TableHead>
                   <TableHead>Avaliações</TableHead>
                   <TableHead>Vendas Fechadas</TableHead>
@@ -251,6 +252,7 @@ const Settings = () => {
                         value={config.monthlyGoal}
                         onChange={(e) => handleInputChange(index, 'monthlyGoal', e.target.value)}
                         className="w-full"
+                        placeholder="Ex: 150000" // Adicionando placeholder
                       />
                     </TableCell>
                     <TableCell>
@@ -259,6 +261,7 @@ const Settings = () => {
                         value={config.averageTicket}
                         onChange={(e) => handleInputChange(index, 'averageTicket', e.target.value)}
                         className="w-full"
+                        placeholder="Ex: 2500" // Adicionando placeholder
                       />
                     </TableCell>
                     <TableCell>
