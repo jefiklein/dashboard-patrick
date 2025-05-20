@@ -43,8 +43,8 @@ const Settings = () => {
 
   // URL do webhook para salvar as configurações
   const SAVE_WEBHOOK_URL = "https://north-clinic-n8n.hmvvay.easypanel.host/webhook/46d04edf-8fdc-4415-adf3-45482b9dd19c";
-  // TODO: Adicionar URL do webhook para carregar as configurações
-  const LOAD_WEBHOOK_URL = ""; // Substitua pela URL do webhook de leitura quando estiver pronto
+  // URL do webhook para carregar as configurações
+  const LOAD_WEBHOOK_URL = "https://north-clinic-n8n.hmvvay.easypanel.host/webhook/b4833222-6fab-4f9f-9554-d14c82095a16";
 
   // Função para obter o nome do mês
   const getMonthName = (monthIndex: number) => {
@@ -68,48 +68,44 @@ const Settings = () => {
     setIsLoading(true);
     console.log(`Carregando configuração mensal para o ano: ${year}...`);
 
-    // TODO: Implementar chamada ao webhook para carregar dados para o ano 'year'
-    // Por enquanto, continua usando dados iniciais como placeholder
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simula carregamento
-    const loadedData = generateInitialConfigForYear(year); // Usando dados iniciais como placeholder
-    setMonthlyConfig(loadedData);
-    console.log(`Configuração carregada (placeholder) para o ano: ${year}.`);
+    if (!LOAD_WEBHOOK_URL) {
+      console.error("URL do webhook de leitura não definida.");
+      showError("Erro: URL do webhook de leitura não configurada.");
+      setMonthlyConfig(generateInitialConfigForYear(year)); // Carrega dados iniciais se a URL não estiver definida
+      setIsLoading(false);
+      return;
+    }
 
-    // Exemplo de como seria a chamada real (descomente e ajuste quando o webhook de leitura estiver pronto)
-    /*
-    if (LOAD_WEBHOOK_URL) {
-      try {
-        const response = await fetch(`${LOAD_WEBHOOK_URL}?year=${year}`);
-        if (!response.ok) {
-          throw new Error(`Erro HTTP: ${response.status}`);
-        }
-        const data: MonthlyConfig[] = await response.json();
-        // Se o webhook retornar um array vazio ou dados parciais,
-        // você pode mesclar com generateInitialConfigForYear para garantir todos os meses
-        const initialData = generateInitialConfigForYear(year);
-        const mergedData = initialData.map(initialMonth => {
-          const loadedMonth = data.find(item => item.year === initialMonth.year && item.month === initialMonth.month);
-          return loadedMonth ? loadedMonth : initialMonth;
-        });
-        setMonthlyConfig(mergedData);
-        console.log(`Configuração carregada do webhook para o ano: ${year}.`, mergedData);
-      } catch (error: any) {
-        console.error("Erro ao carregar configuração:", error);
-        showError(`Erro ao carregar configuração: ${error.message}`);
-        // Em caso de erro, ainda pode carregar os dados iniciais zerados
-        setMonthlyConfig(generateInitialConfigForYear(year));
-      } finally {
-        setIsLoading(false);
+    try {
+      // Adiciona o ano como query parameter na URL do webhook de leitura
+      const response = await fetch(`${LOAD_WEBHOOK_URL}?year=${year}`);
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "Erro desconhecido");
+        throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
       }
-    } else {
-      // Se a URL do webhook de leitura não estiver definida, usa dados iniciais
-      const loadedData = generateInitialConfigForYear(year);
-      setMonthlyConfig(loadedData);
-      console.log(`URL do webhook de leitura não definida. Usando dados iniciais para o ano: ${year}.`);
+      const data: MonthlyConfig[] = await response.json();
+      console.log(`Dados carregados do webhook para o ano ${year}:`, data);
+
+      // Mescla os dados carregados com a estrutura inicial para garantir todos os 12 meses
+      const initialData = generateInitialConfigForYear(year);
+      const mergedData = initialData.map(initialMonth => {
+        const loadedMonth = data.find(item => item.year === initialMonth.year && item.month === initialMonth.month);
+        // Se encontrou dados para o mês, usa os dados carregados; caso contrário, usa os dados iniciais (zerados)
+        return loadedMonth ? loadedMonth : initialMonth;
+      });
+
+      setMonthlyConfig(mergedData);
+      console.log(`Configuração mesclada para o ano ${year}:`, mergedData);
+      // showSuccess("Configuração carregada com sucesso!"); // Opcional: mostrar toast de sucesso no carregamento
+
+    } catch (error: any) {
+      console.error("Erro ao carregar configuração:", error);
+      showError(`Erro ao carregar configuração: ${error.message}`);
+      // Em caso de erro, ainda pode carregar os dados iniciais zerados
+      setMonthlyConfig(generateInitialConfigForYear(year));
+    } finally {
       setIsLoading(false);
     }
-    */
-   setIsLoading(false); // Remover quando o código acima for descomentado
   };
 
   // Função para salvar a configuração para o ano selecionado
@@ -267,7 +263,7 @@ const Settings = () => {
           )}
         </CardContent>
         <CardFooter className="flex justify-end space-x-2">
-           {/* O botão Carregar Configuração ainda usa o placeholder */}
+           {/* O botão Carregar Configuração agora usa o webhook real */}
            <Button onClick={() => handleLoadConfiguration(selectedYear)} disabled={isLoading} variant="secondary">
              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
              Carregar Configuração
