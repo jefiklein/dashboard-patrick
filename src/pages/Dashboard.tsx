@@ -15,7 +15,7 @@ interface SalesData {
 }
 
 // Define a interface para a nova estrutura de dados retornada pelo webhook de Agendamentos/Avaliações
-interface AppointmentsAndEvaluationsData {
+interface AppointmentsData {
   total_agendamentos: number;
 }
 
@@ -23,7 +23,7 @@ interface EvaluationsData {
   total_realizadas: number;
 }
 
-type CombinedAppointmentsAndEvaluationsResponse = [AppointmentsAndEvaluationsData, EvaluationsData];
+type CombinedAppointmentsAndEvaluationsResponse = [AppointmentsData, EvaluationsData];
 
 
 // Função para buscar os dados do webhook de Vendas, agora aceitando uma data
@@ -138,9 +138,9 @@ const Dashboard = () => {
   const salesClosed = salesData?.[0]?.count_id_north ?? 0;
   const currentRevenue = salesData?.[0]?.sum_valor_venda ?? 0;
 
-  // Extrai os dados de agendamentos e avaliações da nova estrutura
-  const appointmentsMade = appointmentsAndEvaluationsData?.[0]?.total_agendamentos ?? 0;
-  const evaluationsGenerated = appointmentsAndEvaluationsData?.[1]?.total_realizadas ?? 0; // Extrai avaliações
+  // Extrai os dados de agendamentos e avaliações da nova estrutura com verificação de array
+  const appointmentsMade = appointmentsAndEvaluationsData && appointmentsAndEvaluationsData.length > 0 ? appointmentsAndEvaluationsData[0]?.total_agendamentos ?? 0 : 0;
+  const evaluationsGenerated = appointmentsAndEvaluationsData && appointmentsAndEvaluationsData.length > 1 ? appointmentsAndEvaluationsData[1]?.total_realizadas ?? 0 : 0;
 
   console.log("Appointments Made (extracted):", appointmentsMade);
   console.log("Evaluations Generated (extracted):", evaluationsGenerated);
