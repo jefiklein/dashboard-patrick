@@ -16,6 +16,7 @@ interface MonthlyConfig {
   monthlyGoal: number;
   averageTicket: number;
   appointmentsMade: number;
+  evaluationsGenerated: number; // Adicionado campo para Avaliações Geradas
   salesClosed: number;
 }
 
@@ -26,6 +27,7 @@ const initialConfig: MonthlyConfig[] = Array.from({ length: 12 }).map((_, index)
   monthlyGoal: 0,
   averageTicket: 0,
   appointmentsMade: 0,
+  evaluationsGenerated: 0, // Inicializa o novo campo
   salesClosed: 0,
 }));
 
@@ -105,6 +107,7 @@ const Settings = () => {
                 <TableHead>Meta Mensal (R$)</TableHead>
                 <TableHead>Ticket Médio (R$)</TableHead>
                 <TableHead>Agendamentos</TableHead>
+                <TableHead>Avaliações</TableHead> {/* Nova coluna */}
                 <TableHead>Vendas Fechadas</TableHead>
               </TableRow>
             </TableHeader>
@@ -133,6 +136,14 @@ const Settings = () => {
                       type="number"
                       value={config.appointmentsMade}
                       onChange={(e) => handleInputChange(index, 'appointmentsMade', e.target.value)}
+                      className="w-full"
+                    />
+                  </TableCell>
+                   <TableCell> {/* Nova célula para Avaliações */}
+                    <Input
+                      type="number"
+                      value={config.evaluationsGenerated}
+                      onChange={(e) => handleInputChange(index, 'evaluationsGenerated', e.target.value)}
                       className="w-full"
                     />
                   </TableCell>
