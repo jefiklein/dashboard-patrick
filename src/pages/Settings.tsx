@@ -71,11 +71,15 @@ const Settings = () => {
   // Handler para mudança nos inputs da tabela
   const handleInputChange = (monthIndex: number, field: keyof Omit<MonthlyConfig, 'month' | 'year'>, value: string) => {
     setMonthlyConfig(prevConfig =>
-      prevConfig.map((item, index) =>
-        index === monthIndex
-          ? { ...item, [field]: parseFloat(value) || 0 } // Converte para número, default 0 se inválido
-          : item
-      )
+      prevConfig.map((item, index) => {
+        if (index === monthIndex) {
+          // Se o valor for uma string vazia, trate como 0.
+          // Caso contrário, tente converter para float, usando 0 se a conversão falhar.
+          const numericValue = value === '' ? 0 : parseFloat(value) || 0;
+          return { ...item, [field]: numericValue };
+        }
+        return item;
+      })
     );
   };
 
@@ -234,7 +238,6 @@ const Settings = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[100px]">Mês</TableHead>
-                  {/* Ajustando largura das colunas para Meta Mensal e Ticket Médio */}
                   <TableHead className="w-[150px]">Meta Mensal (R$)</TableHead>
                   <TableHead className="w-[150px]">Ticket Médio (R$)</TableHead>
                   <TableHead>Agendamentos</TableHead>
@@ -249,25 +252,28 @@ const Settings = () => {
                     <TableCell>
                       <Input
                         type="number"
-                        value={config.monthlyGoal}
+                        // Exibe o valor como string vazia se for 0, caso contrário exibe o número
+                        value={config.monthlyGoal === 0 ? '' : config.monthlyGoal}
                         onChange={(e) => handleInputChange(index, 'monthlyGoal', e.target.value)}
                         className="w-full"
-                        placeholder="Ex: 150000" // Adicionando placeholder
+                        placeholder="Ex: 150000"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
-                        value={config.averageTicket}
+                        // Exibe o valor como string vazia se for 0, caso contrário exibe o número
+                        value={config.averageTicket === 0 ? '' : config.averageTicket}
                         onChange={(e) => handleInputChange(index, 'averageTicket', e.target.value)}
                         className="w-full"
-                        placeholder="Ex: 2500" // Adicionando placeholder
+                        placeholder="Ex: 2500"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
-                        value={config.appointmentsMade}
+                         // Exibe o valor como string vazia se for 0, caso contrário exibe o número
+                        value={config.appointmentsMade === 0 ? '' : config.appointmentsMade}
                         onChange={(e) => handleInputChange(index, 'appointmentsMade', e.target.value)}
                         className="w-full"
                       />
@@ -275,7 +281,8 @@ const Settings = () => {
                     <TableCell>
                       <Input
                         type="number"
-                        value={config.evaluationsGenerated}
+                         // Exibe o valor como string vazia se for 0, caso contrário exibe o número
+                        value={config.evaluationsGenerated === 0 ? '' : config.evaluationsGenerated}
                         onChange={(e) => handleInputChange(index, 'evaluationsGenerated', e.target.value)}
                         className="w-full"
                       />
@@ -283,7 +290,8 @@ const Settings = () => {
                     <TableCell>
                       <Input
                         type="number"
-                        value={config.salesClosed}
+                         // Exibe o valor como string vazia se for 0, caso contrário exibe o número
+                        value={config.salesClosed === 0 ? '' : config.salesClosed}
                         onChange={(e) => handleInputChange(index, 'salesClosed', e.target.value)}
                         className="w-full"
                       />
@@ -295,7 +303,6 @@ const Settings = () => {
           )}
         </CardContent>
         <CardFooter className="flex justify-end space-x-2">
-           {/* O botão Carregar Configuração agora usa o webhook real */}
            <Button onClick={() => handleLoadConfiguration(selectedYear)} disabled={isLoading} variant="secondary">
              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
              Carregar Configuração
