@@ -8,6 +8,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'; //
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { showSuccess, showError } from '@/utils/toast'; // Importar utilitários de toast
 
 // Interface para a configuração mensal
 interface MonthlyConfig {
@@ -40,6 +41,11 @@ const Settings = () => {
   const [selectedYear, setSelectedYear] = React.useState<number>(new Date().getFullYear());
   const [isLoading, setIsLoading] = React.useState(false);
 
+  // URL do webhook para salvar as configurações
+  const SAVE_WEBHOOK_URL = "https://north-clinic-n8n.hmvvay.easypanel.host/webhook/46d04edf-8fdc-4415-adf3-45482b9dd19c";
+  // TODO: Adicionar URL do webhook para carregar as configurações
+  const LOAD_WEBHOOK_URL = ""; // Substitua pela URL do webhook de leitura quando estiver pronto
+
   // Função para obter o nome do mês
   const getMonthName = (monthIndex: number) => {
     const date = new Date(new Date().getFullYear(), monthIndex, 1); // Ano no Date object não importa aqui, só o mês
@@ -57,30 +63,97 @@ const Settings = () => {
     );
   };
 
-  // Função placeholder para carregar a configuração para o ano selecionado
+  // Função para carregar a configuração para o ano selecionado
   const handleLoadConfiguration = async (year: number) => {
     setIsLoading(true);
     console.log(`Carregando configuração mensal para o ano: ${year}...`);
+
     // TODO: Implementar chamada ao webhook para carregar dados para o ano 'year'
-    // Exemplo: fetch(webhookUrl?year=${year})
-    // Se o webhook retornar dados, use setMonthlyConfig(data);
-    // Se não retornar dados (primeira vez configurando o ano), use:
+    // Por enquanto, continua usando dados iniciais como placeholder
     await new Promise(resolve => setTimeout(resolve, 1500)); // Simula carregamento
     const loadedData = generateInitialConfigForYear(year); // Usando dados iniciais como placeholder
     setMonthlyConfig(loadedData);
     console.log(`Configuração carregada (placeholder) para o ano: ${year}.`);
-    setIsLoading(false);
+
+    // Exemplo de como seria a chamada real (descomente e ajuste quando o webhook de leitura estiver pronto)
+    /*
+    if (LOAD_WEBHOOK_URL) {
+      try {
+        const response = await fetch(`${LOAD_WEBHOOK_URL}?year=${year}`);
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status}`);
+        }
+        const data: MonthlyConfig[] = await response.json();
+        // Se o webhook retornar um array vazio ou dados parciais,
+        // você pode mesclar com generateInitialConfigForYear para garantir todos os meses
+        const initialData = generateInitialConfigForYear(year);
+        const mergedData = initialData.map(initialMonth => {
+          const loadedMonth = data.find(item => item.year === initialMonth.year && item.month === initialMonth.month);
+          return loadedMonth ? loadedMonth : initialMonth;
+        });
+        setMonthlyConfig(mergedData);
+        console.log(`Configuração carregada do webhook para o ano: ${year}.`, mergedData);
+      } catch (error: any) {
+        console.error("Erro ao carregar configuração:", error);
+        showError(`Erro ao carregar configuração: ${error.message}`);
+        // Em caso de erro, ainda pode carregar os dados iniciais zerados
+        setMonthlyConfig(generateInitialConfigForYear(year));
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // Se a URL do webhook de leitura não estiver definida, usa dados iniciais
+      const loadedData = generateInitialConfigForYear(year);
+      setMonthlyConfig(loadedData);
+      console.log(`URL do webhook de leitura não definida. Usando dados iniciais para o ano: ${year}.`);
+      setIsLoading(false);
+    }
+    */
+   setIsLoading(false); // Remover quando o código acima for descomentado
   };
 
-  // Função placeholder para salvar a configuração para o ano selecionado
+  // Função para salvar a configuração para o ano selecionado
   const handleSaveConfiguration = async () => {
     setIsLoading(true);
     console.log(`Salvando configuração mensal para o ano: ${selectedYear}`, monthlyConfig);
-    // TODO: Implementar chamada ao webhook para salvar dados
-    // Exemplo: fetch(webhookUrl, { method: 'POST', body: JSON.stringify({ year: selectedYear, config: monthlyConfig }), headers: { 'Content-Type': 'application/json' } });
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simula salvamento
-    console.log(`Configuração salva (placeholder) para o ano: ${selectedYear}.`);
-    setIsLoading(false);
+
+    if (!SAVE_WEBHOOK_URL) {
+      console.error("URL do webhook de salvamento não definida.");
+      showError("Erro: URL do webhook de salvamento não configurada.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(SAVE_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // Enviando o ano e o array completo de configurações mensais
+        body: JSON.stringify({
+          year: selectedYear,
+          config: monthlyConfig,
+        }),
+      });
+
+      if (!response.ok) {
+        // Tenta ler a mensagem de erro do corpo da resposta, se disponível
+        const errorData = await response.text().catch(() => "Erro desconhecido");
+        throw new Error(`Erro HTTP: ${response.status} - ${errorData}`);
+      }
+
+      // Opcional: processar a resposta do webhook se ele retornar algo útil
+      // const result = await response.json();
+      console.log(`Configuração salva com sucesso para o ano: ${selectedYear}.`);
+      showSuccess("Configuração salva com sucesso!");
+
+    } catch (error: any) {
+      console.error("Erro ao salvar configuração:", error);
+      showError(`Erro ao salvar configuração: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Efeito para carregar a configuração sempre que o ano selecionado mudar
@@ -194,6 +267,7 @@ const Settings = () => {
           )}
         </CardContent>
         <CardFooter className="flex justify-end space-x-2">
+           {/* O botão Carregar Configuração ainda usa o placeholder */}
            <Button onClick={() => handleLoadConfiguration(selectedYear)} disabled={isLoading} variant="secondary">
              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
              Carregar Configuração
