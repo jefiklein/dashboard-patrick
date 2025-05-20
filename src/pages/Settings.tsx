@@ -21,6 +21,22 @@ interface MonthlyConfig {
   salesClosed: number;
 }
 
+// Interface para a estrutura de dados retornada pelo webhook de leitura
+interface WebhookConfigData {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  mes: number; // Mês retornado pelo webhook
+  ano: number; // Ano retornado pelo webhook
+  meta_mensal: number; // Meta Mensal retornado pelo webhook
+  meta_ticket: number; // Ticket Médio retornado pelo webhook
+  meta_agendamentos: number; // Agendamentos retornado pelo webhook
+  meta_avaliacoes: number; // Avaliações retornado pelo webhook
+  meta_quantidade_vendas: number; // Vendas Fechadas retornado pelo webhook
+  id_clinica: number; // Exemplo de outro campo
+}
+
+
 // Função para gerar dados iniciais zerados para um ano específico
 const generateInitialConfigForYear = (year: number): MonthlyConfig[] => {
   return Array.from({ length: 12 }).map((_, index) => ({
@@ -77,25 +93,36 @@ const Settings = () => {
     }
 
     try {
-      // Adiciona o ano como query parameter na URL do webhook de leitura
       const response = await fetch(`${LOAD_WEBHOOK_URL}?year=${year}`);
       if (!response.ok) {
         const errorText = await response.text().catch(() => "Erro desconhecido");
         throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
       }
-      const data: MonthlyConfig[] = await response.json();
-      console.log(`Dados carregados do webhook para o ano ${year}:`, data);
+      // Espera um array de WebhookConfigData
+      const data: WebhookConfigData[] = await response.json();
+      console.log(`Dados brutos carregados do webhook para o ano ${year}:`, data);
 
-      // Mescla os dados carregados com a estrutura inicial para garantir todos os 12 meses
+      // Mapeia os dados recebidos para a estrutura MonthlyConfig
+      const mappedData: MonthlyConfig[] = data.map(item => ({
+        month: item.mes, // Mapeia 'mes' para 'month'
+        year: item.ano,   // Mapeia 'ano' para 'year'
+        monthlyGoal: item.meta_mensal, // Mapeia 'meta_mensal' para 'monthlyGoal'
+        averageTicket: item.meta_ticket, // Mapeia 'meta_ticket' para 'averageTicket'
+        appointmentsMade: item.meta_agendamentos, // Mapeia 'meta_agendamentos' para 'appointmentsMade'
+        evaluationsGenerated: item.meta_avaliacoes, // Mapeia 'meta_avaliacoes' para 'evaluationsGenerated'
+        salesClosed: item.meta_quantidade_vendas, // Mapeia 'meta_quantidade_vendas' para 'salesClosed'
+      }));
+
+      // Mescla os dados mapeados com a estrutura inicial para garantir todos os 12 meses
       const initialData = generateInitialConfigForYear(year);
       const mergedData = initialData.map(initialMonth => {
-        const loadedMonth = data.find(item => item.year === initialMonth.year && item.month === initialMonth.month);
+        const loadedMonth = mappedData.find(item => item.year === initialMonth.year && item.month === initialMonth.month);
         // Se encontrou dados para o mês, usa os dados carregados; caso contrário, usa os dados iniciais (zerados)
         return loadedMonth ? loadedMonth : initialMonth;
       });
 
       setMonthlyConfig(mergedData);
-      console.log(`Configuração mesclada para o ano ${year}:`, mergedData);
+      console.log(`Configuração mesclada (mapeada) para o ano ${year}:`, mergedData);
       // showSuccess("Configuração carregada com sucesso!"); // Opcional: mostrar toast de sucesso no carregamento
 
     } catch (error: any) {
@@ -127,6 +154,8 @@ const Settings = () => {
           'Content-Type': 'application/json',
         },
         // Enviando o ano e o array completo de configurações mensais
+        // Nota: Aqui estamos enviando os dados na estrutura MonthlyConfig.
+        // O webhook de salvamento no n8n precisará mapear de volta para os nomes de coluna do banco de dados.
         body: JSON.stringify({
           year: selectedYear,
           config: monthlyConfig,
