@@ -26,16 +26,40 @@ interface EvaluationsData {
 // Define o tipo esperado como um array contendo potencialmente esses objetos
 type CombinedAppointmentsAndEvaluationsResponse = Array<AppointmentsData | EvaluationsData>;
 
+// Interface para a estrutura de dados retornada pelo webhook de leitura de Configurações
+interface WebhookConfigData {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  mes: number; // Mês retornado pelo webhook (0-11)
+  ano: number; // Ano retornado pelo webhook
+  meta_mensal: number; // Meta Mensal retornado pelo webhook
+  meta_ticket: number; // Ticket Médio retornado pelo webhook
+  meta_agendamentos: number; // Agendamentos retornado pelo webhook
+  meta_avaliacoes: number; // Avaliações retornado pelo webhook
+  meta_quantidade_vendas: number; // Vendas Fechadas retornado pelo webhook
+  id_clinica: number; // Exemplo de outro campo
+}
+
+// Interface para a configuração mensal (mapeada do webhook)
+interface MonthlyConfig {
+  month: number; // 0 for January, 11 for December
+  year: number;
+  monthlyGoal: number;
+  averageTicket: number;
+  appointmentsMade: number;
+  evaluationsGenerated: number;
+  salesClosed: number;
+}
+
 
 // Função para buscar os dados do webhook de Vendas, agora aceitando uma data
 const fetchSalesData = async (date: Date): Promise<SalesData[]> => {
-  // Formata a data para incluir no webhook URL, se suportado
-  // Exemplo: Adicionando query params para mês e ano. Ajuste conforme o webhook espera.
   const month = format(date, 'MM');
   const year = format(date, 'yyyy');
   const webhookUrl = `https://north-clinic-n8n.hmvvay.easypanel.host/webhook/a1de671e-e201-489a-89db-fa12f96bd5c4?month=${month}&year=${year}`;
 
-  console.log("Fetching sales data for:", webhookUrl); // Log para depuração
+  console.log("Fetching sales data for:", webhookUrl);
 
   const response = await fetch(webhookUrl);
   if (!response.ok) {
@@ -48,19 +72,62 @@ const fetchSalesData = async (date: Date): Promise<SalesData[]> => {
 const fetchAppointmentsAndEvaluationsData = async (date: Date): Promise<CombinedAppointmentsAndEvaluationsResponse> => {
   const month = format(date, 'MM');
   const year = format(date, 'yyyy');
-  // Este webhook retorna dados de agendamentos e avaliações em um array
   const webhookUrl = `https://north-clinic-n8n.hmvvay.easypanel.host/webhook/815c3e0c-32c7-41ac-9a84-0b1125c4ed84?month=${month}&year=${year}`;
 
-  console.log("Fetching appointments and evaluations data for:", webhookUrl); // Log para depuração
+  console.log("Fetching appointments and evaluations data for:", webhookUrl);
 
   const response = await fetch(webhookUrl);
   if (!response.ok) {
     throw new Error('Erro ao buscar dados de agendamentos e avaliações do webhook');
   }
   const data: CombinedAppointmentsAndEvaluationsResponse = await response.json();
-  // Loga a resposta completa e formatada para depuração
   console.log("Appointments and Evaluations Data received:", JSON.stringify(data, null, 2));
   return data;
+};
+
+// Função para buscar os dados de configuração mensal para um ano específico
+const fetchMonthlyConfig = async (year: number): Promise<MonthlyConfig[]> => {
+  const LOAD_WEBHOOK_URL = "https://north-clinic-n8n.hmvvay.easypanel.host/webhook/b4833222-6fab-4f9f-9554-d14c82095a16";
+  if (!LOAD_WEBHOOK_URL) {
+     console.error("URL do webhook de leitura de configuração não definida.");
+     // Retorna um array vazio ou com dados zerados se a URL não estiver definida
+     return Array.from({ length: 12 }).map((_, index) => ({
+        month: index, year: year, monthlyGoal: 0, averageTicket: 0, appointmentsMade: 0, evaluationsGenerated: 0, salesClosed: 0
+     }));
+  }
+
+  console.log(`Fetching monthly config for year: ${year} from ${LOAD_WEBHOOK_URL}?year=${year}`);
+
+  try {
+    const response = await fetch(`${LOAD_WEBHOOK_URL}?year=${year}`);
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Erro desconhecido");
+      throw new Error(`Erro HTTP ao buscar configuração: ${response.status} - ${errorText}`);
+    }
+    const data: WebhookConfigData[] = await response.json();
+    console.log(`Raw config data received for year ${year}:`, data);
+
+    // Mapeia os dados recebidos para a estrutura MonthlyConfig
+    const mappedData: MonthlyConfig[] = data.map(item => ({
+      month: item.mes, // Mapeia 'mes' para 'month' (0-11)
+      year: item.ano,   // Mapeia 'ano' para 'year'
+      monthlyGoal: item.meta_mensal, // Mapeia 'meta_mensal' para 'monthlyGoal'
+      averageTicket: item.meta_ticket, // Mapeia 'meta_ticket' para 'averageTicket'
+      appointmentsMade: item.meta_agendamentos, // Mapeia 'meta_agendamentos' para 'appointmentsMade'
+      evaluationsGenerated: item.meta_avaliacoes, // Mapeia 'meta_avaliacoes' para 'evaluationsGenerated'
+      salesClosed: item.meta_quantidade_vendas, // Mapeia 'meta_quantidade_vendas' para 'salesClosed'
+    }));
+
+    // Retorna os dados mapeados
+    return mappedData;
+
+  } catch (error) {
+    console.error("Erro ao buscar configuração mensal:", error);
+    // Em caso de erro, retorna dados zerados para o ano
+    return Array.from({ length: 12 }).map((_, index) => ({
+       month: index, year: year, monthlyGoal: 0, averageTicket: 0, appointmentsMade: 0, evaluationsGenerated: 0, salesClosed: 0
+    }));
+  }
 };
 
 
@@ -71,11 +138,9 @@ const calculateRemainingBusinessDays = (selectedDate: Date): number => {
   let businessDays = 0;
   let currentDate = today;
 
-  // Se a data selecionada for um mês futuro, calculamos os dias úteis do mês inteiro
-  // Se for o mês atual, calculamos a partir de hoje até o fim do mês
-  // Se for um mês passado, o resultado é 0 dias restantes
+  // Se a data selecionada for um mês passado, o resultado é 0 dias restantes
   if (endOfSelectedMonth < today) {
-      return 0; // Mês passado, 0 dias restantes
+      return 0;
   }
 
   // Se o mês selecionado for o mês atual, começamos a contagem a partir de hoje
@@ -128,12 +193,25 @@ const Dashboard = () => {
     queryFn: () => fetchAppointmentsAndEvaluationsData(selectedDate), // Passa a data selecionada
   });
 
+  // Use react-query para buscar os dados de configuração mensal para o ano selecionado
+  const {
+    data: monthlyConfigData,
+    isLoading: isLoadingConfig,
+    isError: isErrorConfig,
+    error: configError,
+    refetch: refetchConfig,
+    isFetching: isFetchingConfig
+  } = useQuery<MonthlyConfig[], Error>({
+    queryKey: ['monthlyConfig', selectedDate.getFullYear()], // Query key inclui apenas o ano
+    queryFn: () => fetchMonthlyConfig(selectedDate.getFullYear()), // Passa o ano selecionado
+  });
+
+
   // Adicionando logs para depuração
   console.log("Selected Date:", selectedDate);
-  // O log da resposta completa agora está dentro de fetchAppointmentsAndEvaluationsData
-  console.log("Is Loading Appointments/Evaluations:", isLoadingAppointmentsAndEvaluations);
-  console.log("Is Error Appointments/Evaluations:", isErrorAppointmentsAndEvaluations);
-  console.log("Appointments/Evaluations Error:", appointmentsAndEvaluationsError);
+  console.log("Sales Data:", salesData);
+  console.log("Appointments and Evaluations Data:", appointmentsAndEvaluationsData);
+  console.log("Monthly Config Data:", monthlyConfigData);
 
 
   // Extrai os dados de vendas e faturamento
@@ -141,7 +219,6 @@ const Dashboard = () => {
   const currentRevenue = salesData?.[0]?.sum_valor_venda ?? 0;
 
   // Extrai os dados de agendamentos e avaliações da estrutura de array
-  // Verifica se o array existe e tem pelo menos 2 elementos antes de acessar
   const appointmentsMade = (appointmentsAndEvaluationsData && appointmentsAndEvaluationsData.length > 0 && 'total_agendamentos' in appointmentsAndEvaluationsData[0])
     ? (appointmentsAndEvaluationsData[0] as AppointmentsData).total_agendamentos ?? 0
     : 0;
@@ -150,27 +227,37 @@ const Dashboard = () => {
     ? (appointmentsAndEvaluationsData[1] as EvaluationsData).total_realizadas ?? 0
     : 0;
 
+  // Encontra a configuração para o mês selecionado
+  const currentMonthConfig = monthlyConfigData?.find(config =>
+    config.year === selectedDate.getFullYear() && config.month === selectedDate.getMonth()
+  );
 
-  console.log("Appointments Made (extracted):", appointmentsMade);
-  console.log("Evaluations Generated (extracted):", evaluationsGenerated);
-
-
-  // Calcula o ticket médio
+  // Calcula o ticket médio atual
   const averageTicket = salesClosed > 0 ? currentRevenue / salesClosed : 0;
 
+  // Calcula os percentuais em relação às metas
+  const revenueProgress = currentMonthConfig?.monthlyGoal > 0 ? (currentRevenue / currentMonthConfig.monthlyGoal) * 100 : null;
+  const salesProgress = currentMonthConfig?.salesClosed > 0 ? (salesClosed / currentMonthConfig.salesClosed) * 100 : null;
+  const appointmentsProgress = currentMonthConfig?.appointmentsMade > 0 ? (appointmentsMade / currentMonthConfig.appointmentsMade) * 100 : null;
+  const evaluationsProgress = currentMonthConfig?.evaluationsGenerated > 0 ? (evaluationsGenerated / currentMonthConfig.evaluationsGenerated) * 100 : null;
+  const averageTicketProgress = currentMonthConfig?.averageTicket > 0 ? (averageTicket / currentMonthConfig.averageTicket) * 100 : null;
+
+
   // Determina se qualquer uma das buscas está em andamento
-  const isAnyFetching = isFetchingSales || isFetchingAppointmentsAndEvaluations;
+  const isAnyFetching = isFetchingSales || isFetchingAppointmentsAndEvaluations || isFetchingConfig;
 
   // Handler para a mudança de mês no MonthNavigator
   const handleMonthChange = (newDate: Date) => {
     setSelectedDate(newDate);
-    // react-query irá refetch automaticamente porque a queryKey mudou
+    // react-query irá refetch automaticamente porque a queryKey mudou para salesData e appointmentsAndEvaluationsData
+    // A queryKey para monthlyConfig só muda o ano, então refetchará se o ano mudar
   };
 
   // Handler para o botão Atualizar Dados
   const handleRefreshData = () => {
     refetchSales();
     refetchAppointmentsAndEvaluations();
+    refetchConfig(); // Também refetch a configuração
   };
 
 
@@ -225,16 +312,20 @@ const Dashboard = () => {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoadingAppointmentsAndEvaluations && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
-            {isErrorAppointmentsAndEvaluations && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {appointmentsAndEvaluationsError?.message}</div>}
-            {!isLoadingAppointmentsAndEvaluations && !isErrorAppointmentsAndEvaluations && (
+             {isLoadingAppointmentsAndEvaluations || isLoadingConfig ? (
+               <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>
+             ) : isErrorAppointmentsAndEvaluations || isErrorConfig ? (
+               <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao carregar dados/meta</div>
+             ) : (
               <>
                 <div className="text-2xl font-bold">{appointmentsMade}</div>
-                <p className="text-xs text-muted-foreground">
-                  Total de agendamentos no mês
-                </p>
+                {currentMonthConfig && (
+                  <p className="text-xs text-muted-foreground">
+                    Meta: {currentMonthConfig.appointmentsMade} ({appointmentsProgress !== null ? `${appointmentsProgress.toFixed(0)}%` : 'N/A'} da meta)
+                  </p>
+                )}
               </>
-            )}
+             )}
           </CardContent>
         </Card>
 
@@ -247,14 +338,18 @@ const Dashboard = () => {
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             {isLoadingAppointmentsAndEvaluations && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
-             {isErrorAppointmentsAndEvaluations && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {appointmentsAndEvaluationsError?.message}</div>}
-             {!isLoadingAppointmentsAndEvaluations && !isErrorAppointmentsAndEvaluations && (
+             {isLoadingAppointmentsAndEvaluations || isLoadingConfig ? (
+               <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>
+             ) : isErrorAppointmentsAndEvaluations || isErrorConfig ? (
+               <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao carregar dados/meta</div>
+             ) : (
               <>
-                <div className="text-2xl font-bold">{evaluationsGenerated}</div> {/* Agora usa dados do webhook */}
-                <p className="text-xs text-muted-foreground">
-                  Total de avaliações no mês
-                </p>
+                <div className="text-2xl font-bold">{evaluationsGenerated}</div>
+                {currentMonthConfig && (
+                  <p className="text-xs text-muted-foreground">
+                    Meta: {currentMonthConfig.evaluationsGenerated} ({evaluationsProgress !== null ? `${evaluationsProgress.toFixed(0)}%` : 'N/A'} da meta)
+                  </p>
+                )}
               </>
              )}
           </CardContent>
@@ -269,14 +364,18 @@ const Dashboard = () => {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoadingSales && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
-            {isErrorSales && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {salesError?.message}</div>}
-            {!isLoadingSales && !isErrorSales && (
+            {isLoadingSales || isLoadingConfig ? (
+              <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>
+            ) : isErrorSales || isErrorConfig ? (
+              <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao carregar dados/meta</div>
+            ) : (
               <>
                 <div className="text-2xl font-bold">{salesClosed}</div>
-                <p className="text-xs text-muted-foreground">
-                  Total de vendas no mês
-                </p>
+                {currentMonthConfig && (
+                  <p className="text-xs text-muted-foreground">
+                    Meta: {currentMonthConfig.salesClosed} ({salesProgress !== null ? `${salesProgress.toFixed(0)}%` : 'N/A'} da meta)
+                  </p>
+                )}
               </>
             )}
           </CardContent>
@@ -291,14 +390,18 @@ const Dashboard = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoadingSales && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
-            {isErrorSales && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {salesError?.message}</div>}
-            {!isLoadingSales && !isErrorSales && (
+            {isLoadingSales || isLoadingConfig ? (
+              <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>
+            ) : isErrorSales || isErrorConfig ? (
+              <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao carregar dados/meta</div>
+            ) : (
               <>
                 <div className="text-2xl font-bold">R$ {currentRevenue.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">
-                  Total de faturamento no mês
-                </p>
+                {currentMonthConfig && (
+                  <p className="text-xs text-muted-foreground">
+                    Meta: R$ {currentMonthConfig.monthlyGoal.toFixed(2)} ({revenueProgress !== null ? `${revenueProgress.toFixed(0)}%` : 'N/A'} da meta)
+                  </p>
+                )}
               </>
             )}
           </CardContent>
@@ -313,14 +416,18 @@ const Dashboard = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             {(isLoadingSales || isLoadingAppointmentsAndEvaluations) && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
-             {(isErrorSales || isErrorAppointmentsAndEvaluations) && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao calcular</div>}
-             {!(isLoadingSales || isLoadingAppointmentsAndEvaluations) && !(isErrorSales || isErrorAppointmentsAndEvaluations) && (
+             {(isLoadingSales || isLoadingAppointmentsAndEvaluations || isLoadingConfig) ? (
+               <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>
+             ) : (isErrorSales || isErrorAppointmentsAndEvaluations || isErrorConfig) ? (
+               <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao calcular</div>
+             ) : (
               <>
                 <div className="text-2xl font-bold">R$ {averageTicket.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">
-                  Faturamento / Vendas no mês
-                </p>
+                {currentMonthConfig && (
+                  <p className="text-xs text-muted-foreground">
+                    Meta: R$ {currentMonthConfig.averageTicket.toFixed(2)} ({averageTicketProgress !== null ? `${averageTicketProgress.toFixed(0)}%` : 'N/A'} da meta)
+                  </p>
+                )}
               </>
              )}
           </CardContent>
