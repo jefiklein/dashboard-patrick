@@ -3,9 +3,10 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, CalendarDays, Users, CheckCircle, Star, Loader2, AlertCircle, RefreshCw, Settings as SettingsIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { startOfToday, endOfMonth, getDay, addDays, isWeekend, format, startOfMonth, endOfDay } from 'date-fns'; // Importando format, startOfMonth, endOfDay
+import { startOfToday, endOfMonth, getDay, addDays, isWeekend, format, startOfMonth, endOfDay } from 'date-fns';
 import { Link } from 'react-router-dom';
-import MonthNavigator from '@/components/MonthNavigator'; // Importando MonthNavigator
+import MonthNavigator from '@/components/MonthNavigator';
+import { ptBR } from 'date-fns/locale'; // Importar locale para português
 
 // Define a interface para os dados retornados pelo webhook de Vendas
 interface SalesData {
@@ -13,10 +14,17 @@ interface SalesData {
   sum_valor_venda: number;
 }
 
-// Define a interface para os dados retornados pelo webhook de Agendamentos
-interface AppointmentsData {
-  count_id_agendamento: number;
+// Define a interface para a nova estrutura de dados retornada pelo webhook de Agendamentos/Avaliações
+interface AppointmentsAndEvaluationsData {
+  total_agendamentos: number;
 }
+
+interface EvaluationsData {
+  total_realizadas: number;
+}
+
+type CombinedAppointmentsAndEvaluationsResponse = [AppointmentsAndEvaluationsData, EvaluationsData];
+
 
 // Função para buscar os dados do webhook de Vendas, agora aceitando uma data
 const fetchSalesData = async (date: Date): Promise<SalesData[]> => {
@@ -35,22 +43,24 @@ const fetchSalesData = async (date: Date): Promise<SalesData[]> => {
   return response.json();
 };
 
-// Função para buscar os dados do webhook de Agendamentos, agora aceitando uma data
-const fetchAppointmentsData = async (date: Date): Promise<AppointmentsData> => {
-  // Formata a data para incluir no webhook URL, se suportado
-  // Exemplo: Adicionando query params para mês e ano. Ajuste conforme o webhook espera.
+// Função para buscar os dados do webhook de Agendamentos/Avaliações, agora aceitando uma data e esperando a nova estrutura
+const fetchAppointmentsAndEvaluationsData = async (date: Date): Promise<CombinedAppointmentsAndEvaluationsResponse> => {
   const month = format(date, 'MM');
   const year = format(date, 'yyyy');
+  // Assumindo que este é o webhook que agora retorna os dados combinados
   const webhookUrl = `https://north-clinic-n8n.hmvvay.easypanel.host/webhook/815c3e0c-32c7-41ac-9a84-0b1125c4ed84?month=${month}&year=${year}`;
 
-  console.log("Fetching appointments data for:", webhookUrl); // Log para depuração
+  console.log("Fetching appointments and evaluations data for:", webhookUrl); // Log para depuração
 
   const response = await fetch(webhookUrl);
   if (!response.ok) {
-    throw new Error('Erro ao buscar dados de agendamentos do webhook');
+    throw new Error('Erro ao buscar dados de agendamentos e avaliações do webhook');
   }
-  return response.json();
+  const data: CombinedAppointmentsAndEvaluationsResponse = await response.json();
+  console.log("Appointments and Evaluations Data received:", data); // Log para depuração
+  return data;
 };
+
 
 // Função para calcular os dias úteis restantes (Segunda a Sábado) no mês da data selecionada
 const calculateRemainingBusinessDays = (selectedDate: Date): number => {
@@ -90,9 +100,6 @@ const Dashboard = () => {
   // Calcula os dias úteis restantes dinamicamente com base na data selecionada
   const remainingBusinessDays = calculateRemainingBusinessDays(selectedDate);
 
-  // Placeholder data for metrics not fetched from webhooks yet
-  const evaluationsGenerated = 30; // Example value
-
   // Use react-query para buscar dados de vendas, dependendo da data selecionada
   const {
     data: salesData,
@@ -106,42 +113,44 @@ const Dashboard = () => {
     queryFn: () => fetchSalesData(selectedDate), // Passa a data selecionada para a função de busca
   });
 
-  // Use react-query para buscar dados de agendamentos, dependendo da data selecionada
+  // Use react-query para buscar dados de agendamentos e avaliações, dependendo da data selecionada
   const {
-    data: appointmentsData,
-    isLoading: isLoadingAppointments,
-    isError: isErrorAppointments,
-    error: appointmentsError,
-    refetch: refetchAppointments,
-    isFetching: isFetchingAppointments
-  } = useQuery<AppointmentsData, Error>({
-    queryKey: ['appointmentsData', format(selectedDate, 'yyyy-MM')], // Query key inclui mês/ano
-    queryFn: () => fetchAppointmentsData(selectedDate), // Passa a data selecionada
+    data: appointmentsAndEvaluationsData,
+    isLoading: isLoadingAppointmentsAndEvaluations,
+    isError: isErrorAppointmentsAndEvaluations,
+    error: appointmentsAndEvaluationsError,
+    refetch: refetchAppointmentsAndEvaluations,
+    isFetching: isFetchingAppointmentsAndEvaluations
+  } = useQuery<CombinedAppointmentsAndEvaluationsResponse, Error>({
+    queryKey: ['appointmentsAndEvaluationsData', format(selectedDate, 'yyyy-MM')], // Query key inclui mês/ano
+    queryFn: () => fetchAppointmentsAndEvaluationsData(selectedDate), // Passa a data selecionada
   });
 
   // Adicionando logs para depuração
   console.log("Selected Date:", selectedDate);
-  console.log("Appointments Data:", appointmentsData);
-  console.log("Is Loading Appointments:", isLoadingAppointments);
-  console.log("Is Error Appointments:", isErrorAppointments);
-  console.log("Appointments Error:", appointmentsError);
+  console.log("Appointments and Evaluations Data:", appointmentsAndEvaluationsData);
+  console.log("Is Loading Appointments/Evaluations:", isLoadingAppointmentsAndEvaluations);
+  console.log("Is Error Appointments/Evaluations:", isErrorAppointmentsAndEvaluations);
+  console.log("Appointments/Evaluations Error:", appointmentsAndEvaluationsError);
 
 
   // Extrai os dados de vendas e faturamento
   const salesClosed = salesData?.[0]?.count_id_north ?? 0;
   const currentRevenue = salesData?.[0]?.sum_valor_venda ?? 0;
 
-  // Extrai os dados de agendamentos
-  const appointmentsMade = appointmentsData?.count_id_agendamento ?? 0;
+  // Extrai os dados de agendamentos e avaliações da nova estrutura
+  const appointmentsMade = appointmentsAndEvaluationsData?.[0]?.total_agendamentos ?? 0;
+  const evaluationsGenerated = appointmentsAndEvaluationsData?.[1]?.total_realizadas ?? 0; // Extrai avaliações
 
   console.log("Appointments Made (extracted):", appointmentsMade);
+  console.log("Evaluations Generated (extracted):", evaluationsGenerated);
 
 
   // Calcula o ticket médio
   const averageTicket = salesClosed > 0 ? currentRevenue / salesClosed : 0;
 
   // Determina se qualquer uma das buscas está em andamento
-  const isAnyFetching = isFetchingSales || isFetchingAppointments;
+  const isAnyFetching = isFetchingSales || isFetchingAppointmentsAndEvaluations;
 
   // Handler para a mudança de mês no MonthNavigator
   const handleMonthChange = (newDate: Date) => {
@@ -152,7 +161,7 @@ const Dashboard = () => {
   // Handler para o botão Atualizar Dados
   const handleRefreshData = () => {
     refetchSales();
-    refetchAppointments();
+    refetchAppointmentsAndEvaluations();
   };
 
 
@@ -205,9 +214,9 @@ const Dashboard = () => {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoadingAppointments && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
-            {isErrorAppointments && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {appointmentsError?.message}</div>}
-            {!isLoadingAppointments && !isErrorAppointments && (
+            {isLoadingAppointmentsAndEvaluations && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
+            {isErrorAppointmentsAndEvaluations && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {appointmentsAndEvaluationsError?.message}</div>}
+            {!isLoadingAppointmentsAndEvaluations && !isErrorAppointmentsAndEvaluations && (
               <>
                 <div className="text-2xl font-bold">{appointmentsMade}</div>
                 <p className="text-xs text-muted-foreground">
@@ -227,10 +236,16 @@ const Dashboard = () => {
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{evaluationsGenerated}</div> {/* Este dado ainda é placeholder */}
-            <p className="text-xs text-muted-foreground">
-              Total de avaliações no mês
-            </p>
+             {isLoadingAppointmentsAndEvaluations && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
+             {isErrorAppointmentsAndEvaluations && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro: {appointmentsAndEvaluationsError?.message}</div>}
+             {!isLoadingAppointmentsAndEvaluations && !isErrorAppointmentsAndEvaluations && (
+              <>
+                <div className="text-2xl font-bold">{evaluationsGenerated}</div> {/* Agora usa dados do webhook */}
+                <p className="text-xs text-muted-foreground">
+                  Total de avaliações no mês
+                </p>
+              </>
+             )}
           </CardContent>
         </Card>
 
@@ -287,9 +302,9 @@ const Dashboard = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             {(isLoadingSales || isLoadingAppointments) && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
-             {(isErrorSales || isErrorAppointments) && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao calcular</div>}
-             {!(isLoadingSales || isLoadingAppointments) && !(isErrorSales || isErrorAppointments) && (
+             {(isLoadingSales || isLoadingAppointmentsAndEvaluations) && <div className="text-2xl font-bold flex items-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...</div>}
+             {(isErrorSales || isErrorAppointmentsAndEvaluations) && <div className="text-sm text-red-500 flex items-center"><AlertCircle className="mr-1 h-4 w-4" /> Erro ao calcular</div>}
+             {!(isLoadingSales || isLoadingAppointmentsAndEvaluations) && !(isErrorSales || isErrorAppointmentsAndEvaluations) && (
               <>
                 <div className="text-2xl font-bold">R$ {averageTicket.toFixed(2)}</div>
                 <p className="text-xs text-muted-foreground">
